@@ -1,0 +1,31 @@
+# Virtual env
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment variables
+.env
+
+# Logs
+*.log
+*/logs/
+*.tmp
+*.temp
+
+# SQLite / Instance folder
+instance/
+*.db
+*.sqlite3
+
+# Editor configs
+.vscode/
+.idea/
+
+# File/folder yang di-upload user
+uploads/
