@@ -16,24 +16,50 @@ def extract_mfcc_from_file(filepath, sr=16000, n_mfcc=20, duration=None):
     if file_size < 100000:
         print(f"Warning: Audio file too small ({file_size} bytes), may be corrupted")
     
-    # Try to convert M4A to WAV if needed
+    # Try to convert non-WAV formats to WAV if needed
     file_ext = Path(filepath).suffix.lower()
     actual_filepath = filepath
     
-    if file_ext in ['.m4a', '.aac']:
-        # Try to convert M4A to WAV
+    if file_ext in ['.m4a', '.aac', '.mp3', '.flac', '.ogg']:
+        # Try to convert to WAV using pydub first, then moviepy as fallback
+        wav_path = filepath.rsplit('.', 1)[0] + '.wav'
+        
+        # Try pydub first (faster)
+        conversion_success = False
         try:
             from pydub import AudioSegment
-            wav_path = filepath.replace(file_ext, '.wav')
-            print(f"Converting {file_ext} to WAV: {wav_path}")
+            print(f"Converting {file_ext} to WAV using pydub...")
             audio = AudioSegment.from_file(filepath, format=file_ext[1:])
             audio.export(wav_path, format="wav")
             actual_filepath = wav_path
-            print(f"Conversion successful")
+            conversion_success = True
+            print(f"Conversion successful via pydub")
         except ImportError:
-            print(f"Warning: pydub not installed, cannot convert {file_ext}. Try installing: pip install pydub")
+            print(f"pydub not available, will try moviepy...")
         except Exception as e:
-            print(f"Conversion failed: {type(e).__name__} - {str(e)}")
+            print(f"pydub conversion failed: {type(e).__name__} - {str(e)}, trying moviepy...")
+        
+        # Fallback to moviepy if pydub failed
+        if not conversion_success:
+            try:
+                from moviepy.editor import AudioFileClip
+                print(f"Converting {file_ext} to WAV using moviepy...")
+                clip = AudioFileClip(filepath)
+                clip.audio.write_audiofile(wav_path, verbose=False, logger=None)
+                clip.close()
+                actual_filepath = wav_path
+                conversion_success = True
+                print(f"Conversion successful via moviepy")
+            except ImportError:
+                print(f"moviepy not installed. Install with: pip install moviepy")
+            except Exception as e:
+                print(f"moviepy conversion failed: {type(e).__name__} - {str(e)}")
+        
+        if not conversion_success:
+            print(f"WARNING: Could not convert {file_ext}. Make sure ffmpeg is installed on your system.")
+            print(f"  Windows: choco install ffmpeg")
+            print(f"  Mac: brew install ffmpeg")
+            print(f"  Linux: apt-get install ffmpeg")
     
     try:
         print(f"Loading audio: {actual_filepath}")
