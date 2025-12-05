@@ -4,7 +4,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from utils.audio_utils import extract_mfcc_from_file
 import numpy as np
-import joblib  # nanti pakai ini kalau ada model nyata
+import joblib
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -12,15 +12,35 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app = Flask(__name__)
 CORS(app)  # allow all origins for dev. Lock down in production.
 
-# ---------- Optional: load real model if tersedia ----------
-MODEL_PATH = "model/qiraat_model.pkl"
+# ---------- Optional: load real model + scaler + label encoder if tersedia ----------
+MODEL_JOBLIB = "model/random_forest_model.joblib"
+SCALER_JOBLIB = "model/scaler.joblib"
+LABEL_ENCODER_JOBLIB = "model/label_encoder.joblib"
+
 model = None
-if os.path.exists(MODEL_PATH):
+scaler = None
+label_encoder = None
+
+if os.path.exists(MODEL_JOBLIB):
     try:
-        model = joblib.load(MODEL_PATH)
-        print("Loaded model:", MODEL_PATH)
+        model = joblib.load(MODEL_JOBLIB)
+        print("Loaded model:", MODEL_JOBLIB)
     except Exception as e:
         print("Failed to load model:", e)
+
+if os.path.exists(SCALER_JOBLIB):
+    try:
+        scaler = joblib.load(SCALER_JOBLIB)
+        print("Loaded scaler:", SCALER_JOBLIB)
+    except Exception as e:
+        print("Failed to load scaler:", e)
+
+if os.path.exists(LABEL_ENCODER_JOBLIB):
+    try:
+        label_encoder = joblib.load(LABEL_ENCODER_JOBLIB)
+        print("Loaded label encoder:", LABEL_ENCODER_JOBLIB)
+    except Exception as e:
+        print("Failed to load label encoder:", e)
 
 # ---------- Routes ----------
 @app.route("/")
@@ -45,56 +65,86 @@ def predict():
     f.save(save_path)
 
     # extract features
+    print(f"\n--- Processing: {f.filename} ---")
     features = extract_mfcc_from_file(save_path)
     if features is None:
-        return jsonify({"error": "Failed extract features"}), 500
-    explanation = ""
-    # If real model loaded -> use it. Otherwise return dummy response.
-    if model is not None:
-        try:
-            # model expects 2D array
-            X = np.array(features).reshape(1, -1)
-            pred_idx = model.predict(X)[0]
-            if hasattr(model, "predict_proba"):
-                conf = float(np.max(model.predict_proba(X)))
-            else:
-                conf = 0.0
-            # map label idx to name if needed (assume model outputs strings)
-            label = str(pred_idx)
-            explanation = dummy_data.get(label, "")
-            return jsonify({"prediction": label, "confidence": conf, "explanation": explanation})
-        except Exception as e:
-            print("Model predict error:", e)
-            # fallback to dummy
-    # Dummy prediction (use simple heuristic or random)
-    dummy_labels = ["Qalun", "Warsh", "Khalaf", "Khalad"]
-    # heuristic: use file length as pseudo-feature
-    dummy_data = {
-            "Qalun": "Ditemukan sedikit perbedaan durasi pada bacaan hamzah washal dan pola nada naik di akhir ayat, khas Riwayat Qalun.",
-            "Warsh": "Model mendeteksi variasi panjang vokal dan modulasi nada pada huruf-huruf mad yang khas dalam Riwayat Warsh.",
-            "Khalaf": "Pola bacaan menunjukkan kecenderungan pendek pada harakat tertentu, khas Riwayat Khalaf.",
-            "Khalad": "Deteksi spektrum menunjukkan penghilangan sebagian getaran hamzah, menandakan pola bacaan Riwayat Khalad.",
-        }
+        return jsonify({
+            "error": "Failed to extract MFCC features from audio file",
+            "details": "Check server logs for more information. Ensure audio file is valid format (WAV, MP3, FLAC, etc.)"
+        }), 500
+
+    # Check if model is loaded
+    if model is None:
+        return jsonify({
+            "error": "Model not loaded",
+            "details": "Please ensure model files exist in model/ directory"
+        }), 500
+
+    # Explanation dictionary for each label
+    explanations = {
+        "warsh": "Riwayat Warsh 'an Nafi': Pada lafadz 'مالك' dibaca qashr (pendek) menjadi مَلِك (maliki).",
+        "kholaf": "Riwayat Kholaf 'an Hamzah: Pada lafadz 'مالك' dibaca qashr (pendek) menjadi مَلِك (maliki), lafadz 'صراط' dibaca isymām (bercampurnya karakter artikulasi ص dengan nuansa ز), dan lafadz 'عليهم' huruf ه dibaca dhammah menjadi عَلَيْهُمْ (ʿalayhum)."
+    }
+
     try:
-        import soundfile as sf
-        info = sf.info(save_path)
-        duration = info.duration
-    except Exception:
-        duration = None
+        # Prepare features for model (2D array: 1 sample, 80 features)
+        X = np.array(features).reshape(1, -1)
+        
+        # Scale features using fitted scaler
+        if scaler is not None:
+            try:
+                X = scaler.transform(X)
+            except Exception as e:
+                print("Scaler transform error:", e)
+                return jsonify({"error": "Feature scaling failed"}), 500
 
-    if duration:
-        # pick label based on duration bucket — just to have stable output
-        idx = int(duration) % len(dummy_labels)
-        label = dummy_labels[idx]
-        confidence = round(0.6 + ( (duration - int(duration)) * 0.4 ), 3)
-        explanation = dummy_data[label]
-    else:
-        import random
-        label = random.choice(dummy_labels)
-        confidence = round(random.uniform(0.5, 0.9), 3)
-        explanation = dummy_data[label]
+        # Predict using model
+        pred_raw = model.predict(X)[0]
 
-    return jsonify({"prediction": label, "confidence": confidence, "explanation": explanation})
+        # Get confidence score
+        if hasattr(model, "predict_proba"):
+            try:
+                conf = float(np.max(model.predict_proba(X)))
+            except Exception:
+                conf = 0.0
+        else:
+            conf = 0.0
+
+        # Decode prediction to human-readable label using label encoder
+        label = None
+        try:
+            if label_encoder is not None:
+                try:
+                    label = label_encoder.inverse_transform([pred_raw])[0]
+                except Exception:
+                    try:
+                        label = label_encoder.inverse_transform([int(pred_raw)])[0]
+                    except Exception:
+                        label = str(pred_raw)
+            else:
+                label = str(pred_raw)
+        except Exception:
+            label = str(pred_raw)
+
+        print(f"Prediction: {label}, Confidence: {conf}")
+        
+        # Get explanation for the predicted label
+        explanation = explanations.get(label, "")
+        
+        return jsonify({
+            "prediction": label,
+            "confidence": conf,
+            "explanation": explanation
+        })
+        
+    except Exception as e:
+        print(f"Model predict error: {type(e).__name__} - {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "error": "Prediction failed",
+            "details": str(e)
+        }), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
