@@ -51,6 +51,7 @@ try:
             print(f"  Prediction: {result.get('prediction')}")
             print(f"  Confidence: {result.get('confidence')}")
             print(f"  Explanation: {result.get('explanation')}")
+            print(f"  Latency: {result.get('latency')}")
             print(f"\n✓ SUCCESS! Model accepted 80-dim features")
         else:
             print(f"  Error: {response.text}")

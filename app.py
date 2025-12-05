@@ -5,6 +5,7 @@ from flask_cors import CORS
 from utils.audio_utils import extract_mfcc_from_file
 import numpy as np
 import joblib
+import time
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -42,6 +43,22 @@ if os.path.exists(LABEL_ENCODER_JOBLIB):
     except Exception as e:
         print("Failed to load label encoder:", e)
 
+def format_duration(seconds):
+    seconds = float(seconds)
+
+    # Jika < 1 detik
+    if seconds < 1:
+        return f"{seconds:.2f} detik"
+
+    # Jika < 60 detik
+    if seconds < 60:
+        return f"{seconds:.2f} detik"
+
+    # Jika menit
+    minutes = int(seconds // 60)
+    sec = seconds % 60
+    return f"{minutes} menit {sec:.0f} detik"
+
 # ---------- Routes ----------
 @app.route("/")
 def index():
@@ -49,10 +66,7 @@ def index():
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    """
-    Expects form-data with key 'file' = audio file.
-    Returns JSON: { prediction: str, confidence: float }
-    """
+
     if 'file' not in request.files:
         return jsonify({"error": "No file provided"}), 400
 
@@ -63,6 +77,9 @@ def predict():
     # save upload temporarily
     save_path = os.path.join(UPLOAD_FOLDER, f.filename)
     f.save(save_path)
+
+    # stopwatch start
+    start_time = time.time()
 
     # extract features
     print(f"\n--- Processing: {f.filename} ---")
@@ -130,11 +147,16 @@ def predict():
         
         # Get explanation for the predicted label
         explanation = explanations.get(label, "")
+
+        # stopwatch end
+        duration = time.time() - start_time
+        readable_latency = format_duration(duration)
         
         return jsonify({
             "prediction": label,
             "confidence": conf,
-            "explanation": explanation
+            "explanation": explanation,
+            "latency": readable_latency
         })
         
     except Exception as e:
