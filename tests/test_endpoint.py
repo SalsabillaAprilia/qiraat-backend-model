@@ -4,12 +4,30 @@
 import requests
 import os
 
-# Test file yang sudah ada
-test_audio = "uploads/al-fatihah.wav"
+# Find a test audio file in `uploads/` (prefer .m4a/.mp3)
+import glob
 
-if not os.path.exists(test_audio):
-    print(f"Error: Test audio file not found: {test_audio}")
+search_exts = ('m4a', 'mp3', 'wav', 'flac', 'ogg')
+candidates = []
+for e in search_exts:
+    candidates.extend(glob.glob(f"uploads/*.{e}"))
+
+if not candidates:
+    print("Error: No test audio files found in uploads/. Please add one (e.g. sample.m4a)")
     exit(1)
+
+# Prefer an m4a if available
+preferred = None
+for ext in ('m4a', 'mp3'):
+    for c in candidates:
+        if c.lower().endswith('.' + ext):
+            preferred = c
+            break
+    if preferred:
+        break
+
+test_audio = preferred or candidates[0]
+print(f"Using test audio: {test_audio}")
 
 # URL endpoint
 url = "http://localhost:5000/predict"
