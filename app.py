@@ -70,7 +70,7 @@ def predict():
     if features is None:
         return jsonify({
             "error": "Failed to extract MFCC features from audio file",
-            "details": "Check server logs for more information. Ensure audio file is valid format (WAV, MP3, FLAC, etc.)"
+            "details": "Supported formats: WAV, MP3, M4A, FLAC, OGG. Check server logs. If using MP3/M4A, ensure ffmpeg is installed on your system."
         }), 500
 
     # Check if model is loaded
@@ -82,7 +82,7 @@ def predict():
 
     # Explanation dictionary for each label
     explanations = {
-        "warsh": "Riwayat Warsh 'an Nafi': Pada lafadz 'مالك' dibaca qashr (pendek) menjadi مَلِك (maliki).",
+        "warsy": "Riwayat Warsy 'an Nafi': Pada lafadz 'مالك' dibaca qashr (pendek) menjadi مَلِك (maliki).",
         "kholaf": "Riwayat Kholaf 'an Hamzah: Pada lafadz 'مالك' dibaca qashr (pendek) menjadi مَلِك (maliki), lafadz 'صراط' dibaca isymām (bercampurnya karakter artikulasi ص dengan nuansa ز), dan lafadz 'عليهم' huruf ه dibaca dhammah menjadi عَلَيْهُمْ (ʿalayhum)."
     }
 
