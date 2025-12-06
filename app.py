@@ -13,7 +13,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app = Flask(__name__)
 CORS(app)  # allow all origins for dev. Lock down in production.
 
-# ---------- Optional: load real model + scaler + label encoder if tersedia ----------
+# ---------- load real model + scaler + label encoder ----------
 MODEL_JOBLIB = "model/random_forest_model.joblib"
 SCALER_JOBLIB = "model/scaler.joblib"
 LABEL_ENCODER_JOBLIB = "model/label_encoder.joblib"
@@ -43,6 +43,7 @@ if os.path.exists(LABEL_ENCODER_JOBLIB):
     except Exception as e:
         print("Failed to load label encoder:", e)
 
+# ------------------ Duration Formatter ------------------
 def format_duration(seconds):
     seconds = float(seconds)
 
@@ -97,6 +98,18 @@ def predict():
             "details": "Please ensure model files exist in model/ directory"
         }), 500
 
+    # ------------------ Mapping Qiraat & Riwayat ------------------
+    QIRAAT_MAP = {
+        "warsy": {
+            "qiraat": "Nafi'",
+            "riwayat": "Warsy"
+        },
+        "kholaf": {
+            "qiraat": "Hamzah",
+            "riwayat": "Kholaf"
+        }
+    } 
+    
     # Explanation dictionary for each label
     explanations = {
         "warsy": "Riwayat Warsy 'an Nafi': Pada lafadz 'مالك' dibaca qashr (pendek) menjadi مَلِك (maliki).",
@@ -145,6 +158,9 @@ def predict():
 
         print(f"Prediction: {label}, Confidence: {conf}")
         
+        # Get mapping qiraat–riwayat
+        mapping = QIRAAT_MAP.get(label, {"qiraat": None, "riwayat": None})
+
         # Get explanation for the predicted label
         explanation = explanations.get(label, "")
 
@@ -154,6 +170,8 @@ def predict():
         
         return jsonify({
             "prediction": label,
+            "qiraat": mapping["qiraat"],
+            "riwayat": mapping["riwayat"],
             "confidence": conf,
             "explanation": explanation,
             "latency": readable_latency
