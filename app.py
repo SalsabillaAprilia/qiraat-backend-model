@@ -63,7 +63,7 @@ def format_duration(seconds):
 # ---------- Routes ----------
 @app.route("/")
 def index():
-    return {"status": "ok", "msg": "Qiraat dummy API running"}
+    return {"status": "ok", "msg": "Qiraat API running"}
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -112,8 +112,8 @@ def predict():
     
     # Explanation dictionary for each label
     explanations = {
-        "warsy": "Riwayat Warsy 'an Nafi': Pada lafadz 'مالك' dibaca qashr (pendek) menjadi مَلِك (maliki).",
-        "kholaf": "Riwayat Kholaf 'an Hamzah: Pada lafadz 'مالك' dibaca qashr (pendek) menjadi مَلِك (maliki), lafadz 'صراط' dibaca isymām (bercampurnya karakter artikulasi ص dengan nuansa ز), dan lafadz 'عليهم' huruf ه dibaca dhammah menjadi عَلَيْهُمْ (ʿalayhum)."
+        "warsy": "Dalam riwayat Warsy 'an Nafi', lafadz 'مالك' dibaca qashr (pendek) menjadi مَلِك (maliki).",
+        "kholaf": "Dalam riwayat Kholaf 'an Hamzah, lafadz 'مالك' dibaca qashr (pendek) menjadi مَلِك (maliki), lafadz 'صراط' dibaca isymām (bercampurnya karakter artikulasi ص dengan nuansa ز), dan lafadz 'عليهم' huruf ه dibaca dhammah menjadi عَلَيْهُمْ (ʿalayhum)."
     }
 
     try:
