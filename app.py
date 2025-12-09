@@ -2,13 +2,10 @@
 import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from utils.audio_utils import extract_mfcc_from_file
+from utils.audio_utils import extract_mfcc_from_bytes
 import numpy as np
 import joblib
 import time
-
-UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
 CORS(app)  # allow all origins for dev. Lock down in production.
@@ -75,16 +72,14 @@ def predict():
     if f.filename == "":
         return jsonify({"error": "No filename"}), 400
 
-    # save upload temporarily
-    save_path = os.path.join(UPLOAD_FOLDER, f.filename)
-    f.save(save_path)
-
+    audio_bytes = f.read()
+    
     # stopwatch start
     start_time = time.time()
 
     # extract features
     print(f"\n--- Processing: {f.filename} ---")
-    features = extract_mfcc_from_file(save_path)
+    features = extract_mfcc_from_bytes(audio_bytes)
     if features is None:
         return jsonify({
             "error": "Failed to extract MFCC features from audio file",
