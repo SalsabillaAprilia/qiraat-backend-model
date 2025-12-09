@@ -14,8 +14,8 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # ========== Load Models ==========
 yamnet_extractor = YamnetFeatureExtractor()
-quran_detector = QuranDetector("model/logreg_quran.pkl")
-qiraat_predictor = QiraatPredictor("model/logreg_qiraat.pkl")
+quran_detector = QuranDetector("model/logistic_regression_model.pkl")
+qiraat_predictor = QiraatPredictor("model/random_forest_model.joblib")
 
 
 # ========== Routing ==========
