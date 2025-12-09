@@ -35,7 +35,7 @@ def predict():
     audio = preprocess_audio(audio, sr)
 
     # 3) Extract YAMNet embeddings
-    embeddings = yamnet_extractor.extract(audio)
+    embeddings = yamnet_extractor.extract_embedding(audio)
 
     # 4) Quran / Non-Quran Classification
     is_quran = quran_detector.predict(embeddings)
@@ -47,7 +47,7 @@ def predict():
         })
 
     # 5) Qiraat Classification
-    qiraat = qiraat_predictor.predict(embeddings)
+    qiraat = qiraat_predictor.predict_qiraat(embeddings)
 
     return jsonify({
         "result": "Qur'an",
