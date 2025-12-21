@@ -5,12 +5,17 @@ import os
 import tempfile
 import shutil
 
+
+class AudioValidationError(Exception):
+    """Raised when audio fails validation (e.g., too long)."""
+    pass
+
 def check_ffmpeg_installed():
     if shutil.which("ffmpeg") is None:
         return False
     return True
 
-def extract_mfcc_from_bytes(audio_bytes, sr=16000, n_mfcc=20, duration=None):
+def extract_mfcc_from_bytes(audio_bytes, sr=16000, n_mfcc=20, duration=None, max_duration_seconds=120):
     
     if not check_ffmpeg_installed():
         print("FFMPEG is not installed or not found in PATH.")
@@ -63,6 +68,24 @@ def extract_mfcc_from_bytes(audio_bytes, sr=16000, n_mfcc=20, duration=None):
     if y is None or len(y) == 0:
         print("MFCC extraction ERROR: audio empty after load")
         return None
+
+    # validate duration (seconds)
+    try:
+        actual_duration = librosa.get_duration(y=y, sr=sr_loaded)
+    except Exception as e:
+        print("Could not determine duration:", e)
+        actual_duration = None
+
+    if actual_duration is not None and actual_duration > max_duration_seconds:
+        print(f"Audio validation failed: duration {actual_duration:.2f}s > {max_duration_seconds}s")
+        # cleanup temp files before raising
+        try:
+            os.remove(tmp_path)
+            if os.path.exists(wav_path):
+                os.remove(wav_path)
+        except:
+            pass
+        raise AudioValidationError(f"Audio duration too long: {actual_duration:.2f}s (max {max_duration_seconds}s)")
 
     mfcc = librosa.feature.mfcc(y=y, sr=sr_loaded, n_mfcc=n_mfcc)
     delta = librosa.feature.delta(mfcc)

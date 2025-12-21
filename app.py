@@ -2,7 +2,7 @@
 import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from utils.audio_utils import extract_mfcc_from_bytes
+from utils.audio_utils import extract_mfcc_from_bytes, AudioValidationError
 import numpy as np
 import joblib
 import time
@@ -79,7 +79,11 @@ def predict():
 
     # extract features
     print(f"\n--- Processing: {f.filename} ---")
-    features = extract_mfcc_from_bytes(audio_bytes)
+    try:
+        features = extract_mfcc_from_bytes(audio_bytes, max_duration_seconds=120)
+    except AudioValidationError as e:
+        return jsonify({"error": "Audio validation failed", "details": str(e)}), 400
+
     if features is None:
         return jsonify({
             "error": "Failed to extract MFCC features from audio file",
