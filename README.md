@@ -1,129 +1,74 @@
 # Qiraat Backend Model API
 
-Backend Flask untuk prediksi riwayat Qur'an (Qalun, Warsh, Khalaf, Khalad) menggunakan Random Forest dan MFCC features.
+Deskripsi singkat: Backend Flask yang mengimplementasikan sistem identifikasi riwayat bacaan Al-Qur’an berbasis audio menggunakan fitur MFCC dan model Random Forest. Implementasi saat ini difokuskan pada Surat Al-Fatihah dengan dua riwayat, Warsh dan Khalaf, sebagai ruang lingkup awal penelitian.
 
-## Setup
-
-### 1. Install dependencies
+## Prasyarat
+- Python 3.8+
+- Install dependency:
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Model Files
-Pastikan file berikut ada di folder `model/`:
-- `random_forest_model.joblib` — trained Random Forest model
-- `scaler.joblib` — fitted StandardScaler untuk normalize features
-- `label_encoder.joblib` — fitted LabelEncoder untuk decode predictions
+## File model (folder `model/`)
+Pastikan file berikut tersedia:
+- `random_forest_model.joblib`
+- `scaler.joblib`
+- `label_encoder.joblib`
 
-Semua file ini akan otomatis dimuat saat server start.
+Model files sudah disertakan di folder `model/`. Server akan memuat model saat startup; jika model gagal dimuat server akan mengembalikan error (500).
 
-## Running the Server
+## Menjalankan server
 
 ```bash
 python app.py
 ```
 
-Server akan berjalan di `http://localhost:5000`
+Server default di http://localhost:5000
 
-Output saat startup (jika model terload):
-```
-Loaded model: model/random_forest_model.joblib
-Loaded scaler: model/scaler.joblib
-Loaded label encoder: model/label_encoder.joblib
- * Running on http://0.0.0.0:5000
-```
+## Endpoint singkat
+- GET `/` — health check, mengembalikan status singkat.
+- POST `/predict` — upload file audio (form key: `file`) untuk mendapat prediksi.
 
-Jika ada file yang tidak ditemukan, server tetap berjalan tapi akan return dummy predictions.
-
-## API Endpoints
-
-### GET `/`
-Health check endpoint.
-
-**Response:**
-```json
-{
-  "status": "ok",
-  "msg": "Qiraat dummy API running"
-}
-```
-
-### POST `/predict`
-Upload file audio untuk prediksi riwayat.
-
-**Request:**
-- Form data dengan key `file` = audio file (format: WAV, MP3, FLAC, dll)
-
-**Response (jika model loaded):**
-```json
-{
-  "prediction": "Qalun",
-  "confidence": 0.87,
-  "explanation": "Ditemukan sedikit perbedaan durasi pada bacaan hamzah washal..."
-}
-```
-
-**Response (fallback/dummy):**
-```json
-{
-  "prediction": "Warsh",
-  "confidence": 0.65,
-  "explanation": "Model mendeteksi variasi panjang vokal dan modulasi nada..."
-}
-```
-
-## Testing dengan cURL (Windows CMD)
-
-Ubah `C:\path\to\audio.wav` ke path file audio yang sebenarnya:
-
+Contoh cURL (Windows CMD):
 ```cmd
-curl -X POST -F "file=@C:\path\to\audio.wav" http://localhost:5000/predict
+curl -X POST -F "file=@C:\\path\\to\\audio.wav" http://localhost:5000/predict
 ```
 
-**Contoh response:**
+Respon (contoh):
 ```json
 {
-  "confidence": 0.92,
-  "explanation": "Pola bacaan menunjukkan kecenderungan pendek pada harakat tertentu, khas Riwayat Khalaf.",
-  "prediction": "Khalaf"
+   "prediction": ,
+   "qiraat": ,
+   "riwayat": ,
+   "confidence": ,
+   "explanation": ,
+   "latency": 
 }
 ```
 
-## Audio Processing Pipeline
+## Ringkasan pipeline
+- Ekstraksi fitur audio menggunakan 20 koefisien MFCC beserta turunan delta dan delta-delta, di mana rata-rata dan standar deviasi dari MFCC, serta rata-rata dari delta dan delta-delta, digabungkan menjadi vektor fitur berdimensi 80.
+- Standarisasi dengan `scaler.joblib`
+- Prediksi dengan `random_forest_model.joblib`
+- Decode label dengan `label_encoder.joblib`
 
-1. **Extract MFCC Features** (`utils/audio_utils.py`)
-   - Load audio file dengan librosa (sample rate 22050 Hz)
-   - Extract MFCC dengan 13 coefficients
-   - Aggregate: mean + std per coefficient → 26-dim feature vector
+## Testing
+- Unit tests: jalankan `pytest` pada folder `tests/`:
+```bash
+python -m pytest tests -q
+```
 
-2. **Scale Features** (jika scaler tersedia)
-   - Normalize features menggunakan StandardScaler yang sudah fitted
+Catatan penting untuk `tests/test_endpoint.py`:
+- Skrip pengujian mencari file audio di folder `uploads/` (mis. `uploads/sample.m4a`).
+- Sebelum menjalankan pengujian, buat folder `uploads/` di root proyek dan tempatkan file audio uji di sana.
 
-3. **Predict**
-   - Random Forest model memprediksi class index
-   - Decode index ke label manusia menggunakan LabelEncoder
+Contoh (Windows CMD / PowerShell):
+```bash
+mkdir uploads
+# salin file audio ke uploads/, mis. uploads/sample.m4a
+```
 
-4. **Return Result**
-   - Prediction (riwayat name)
-   - Confidence score (probabilitas tertinggi)
-   - Explanation (deskripsi riwayat)
-
-## Notes
-
-- Server automatically saves uploaded files ke folder `uploads/`
-- CORS enabled untuk semua origins (development only)
-- Error handling untuk file yang rusak atau fitur extraction yang gagal
-- Fallback ke dummy prediction jika ada error saat inference
-
-## Troubleshooting
-
-**Server not loading model files?**
-- Pastikan path di `app.py` sesuai dengan struktur folder aktual
-- Check console output untuk error messages
-
-**Model predictions aneh?**
-- Pastikan audio file format compatible (WAV, MP3, FLAC)
-- Pastikan model files sesuai dengan feature dimension (26-dim expected)
-
-**Port 5000 sudah terpakai?**
-- Edit `app.run(port=5000)` di `app.py` ke port lain, misal 5001
+## Catatan singkat
+- Uploads sementara disimpan di folder `uploads/` (jika diimplementasikan)
+- CORS mungkin diizinkan untuk pengembangan; matikan/konfigurasikan untuk produksi
+- Jika model tidak cocok dengan dimensi fitur, training model dan scaler harus konsisten

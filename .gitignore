@@ -18,12 +18,7 @@ __pycache__/
 *.tmp
 *.temp
 
-# ML artifacts
-/model/
-/model/*
-*.joblib
-*.pkl
-*.h5
+# ML artifacts (large / experimental only)
 
 # SQLite / Instance folder
 instance/
